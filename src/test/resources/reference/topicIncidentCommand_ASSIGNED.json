@@ -1,0 +1,1 @@
+{"id":"0a0b0d16-bab3-4cf3-a182-2d35dc67af9d","messageType":"UpdateIncidentCommand","invokingService":"IncidentProcessService","timestamp":1579036315787,"body":{"incident":{"id":"08992ee3-8818-4a46-bbf0-fc132ef46b93","status":"ASSIGNED"}}}

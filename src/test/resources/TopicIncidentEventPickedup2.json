@@ -1,0 +1,1 @@
+{"id":"250c8376-ef2c-4cec-93e1-c4be8563b0c5","messageType":"IncidentUpdatedEvent","invokingService":"IncidentService","timestamp":1579322674414,"body":{"id":"d01ab222-1561-427c-a185-72698b83f5a0","lat":34.24777,"lon":-77.84751,"numberOfPeople":8,"medicalNeeded":true,"timestamp":1579322582673,"victimName":"Ava Simmons","victimPhoneNumber":"(651) 555-8689","status":"PICKEDUP"}}

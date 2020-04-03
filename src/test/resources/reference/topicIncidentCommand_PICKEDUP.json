@@ -1,0 +1,1 @@
+{"id":"2476cf91-c3b2-4213-aa70-a2c0b457e7bd","messageType":"UpdateIncidentCommand","invokingService":"IncidentProcessService","timestamp":1579036444423,"body":{"incident":{"id":"08992ee3-8818-4a46-bbf0-fc132ef46b93","status":"PICKEDUP"}}}

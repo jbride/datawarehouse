@@ -1,0 +1,1 @@
+{ "messageType": "UpdateResponderCommand", "id": "009c0148-60fd-4873-8a6b-2dd48d96766b", "invokingService": "MissionService", "timestamp": 1579049744365, "body": { "responder": { "id": 1, "latitude": 34.2463, "longitude": -77.9514, "available": true } } }

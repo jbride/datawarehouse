@@ -1,0 +1,1 @@
+{"id":"a6ece7ab-3927-4237-9a79-a58398aa40f8","messageType":"UpdateIncidentCommand","invokingService":"IncidentProcessService","timestamp":1579036514426,"body":{"incident":{"id":"08992ee3-8818-4a46-bbf0-fc132ef46b93","status":"RESCUED"}}}

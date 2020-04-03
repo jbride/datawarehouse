@@ -1,0 +1,87 @@
+package com.redhat.cajun.navy.datawarehouse.dao;
+
+import com.redhat.cajun.navy.datawarehouse.model.MissionReport;
+import io.vertx.axle.sqlclient.Row;
+import io.vertx.axle.sqlclient.RowSet;
+import java.util.concurrent.CompletionStage;
+import javax.annotation.PostConstruct;
+import javax.annotation.PreDestroy;
+import javax.enterprise.context.ApplicationScoped;
+import javax.inject.Inject;
+import org.eclipse.microprofile.config.inject.ConfigProperty;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+/* 
+ * Datawarehouse reporting data access object that uses Vertx based reactive postgresql client.
+ * 
+ * Reference:
+ *   https://vertx.io/docs/vertx-pg-client/java/
+ *   https://quarkus.io/guides/reactive-sql-clients
+ */
+@ApplicationScoped
+public class ReportingReactiveDAO implements IReportingDAO {
+
+    private static final Logger logger = LoggerFactory.getLogger("ReportingReactiveDAO");
+    private static final String QUARKUS_DATASOURCE_URL = "quarkus.datasource.url";
+
+    private static final String SINGLE_QUOTE = "'";
+    private static final String COMMA = ",";
+
+    @Inject
+    io.vertx.axle.pgclient.PgPool pgClient;
+
+    @Inject
+    @ConfigProperty(name = QUARKUS_DATASOURCE_URL)
+    String datasourceURL;
+
+    @PostConstruct
+    public void start() {
+        logger.info("start() reactive pg client = " + pgClient + " : datasourceUrl = " + datasourceURL);
+    }
+
+    @Override
+    public CompletionStage<Integer> persistMissionReport(MissionReport missionReport) {
+
+        return pgClient.query(createInsertMissionReportSQL(missionReport)).handleAsync((pgRowSet, ex) -> checkForException(pgRowSet, ex));
+    }
+
+    public CompletionStage<Integer> flushMissionReportTable() {
+        return pgClient.query("delete from MissionReport").handleAsync((pgRowSet, ex) -> checkForException(pgRowSet, ex));
+    }
+
+    private Integer checkForException(RowSet<Row> rowSet, Throwable x) {
+        if (x != null) {
+            logger.error("checkForException() Problem interacting with database at: " + datasourceURL);
+            throw new RuntimeException(x);
+        } else {
+            return rowSet.rowCount();
+        }
+    }
+
+    private String createInsertMissionReportSQL(MissionReport mReport) {
+        StringBuilder sBuilder = new StringBuilder("insert into MissionReport values(");
+        sBuilder.append(SINGLE_QUOTE + mReport.getId() + SINGLE_QUOTE + COMMA);
+        sBuilder.append(SINGLE_QUOTE + mReport.getStatus() + SINGLE_QUOTE + COMMA);
+        sBuilder.append(SINGLE_QUOTE + mReport.getIncidentId() + SINGLE_QUOTE + COMMA);
+        sBuilder.append(SINGLE_QUOTE + mReport.getProcessInstanceId() + SINGLE_QUOTE + COMMA);
+        sBuilder.append(mReport.getResponderId() + COMMA);
+        sBuilder.append(SINGLE_QUOTE + mReport.getResponderFullName() + SINGLE_QUOTE + COMMA);
+        sBuilder.append(mReport.isResponderHasMedicalKit() + COMMA);
+        sBuilder.append(mReport.getNumberRescued() + COMMA);
+        sBuilder.append(mReport.getResponderDistancePickup() + COMMA);
+        sBuilder.append(mReport.getResponderDistanceDropoff() + COMMA);
+        sBuilder.append(mReport.getResponderDistanceTotal() + COMMA);
+        sBuilder.append(mReport.getResponseTimeSecondsPickup() + COMMA);
+        sBuilder.append(mReport.getResponseTimeSecondsDropoff() + COMMA);
+        sBuilder.append(mReport.getResponseTimeSecondsTotal());
+        sBuilder.append(")");
+        return sBuilder.toString();
+    }
+
+    @PreDestroy
+    public void end() {
+        logger.info("end()");
+    }
+
+}

@@ -1,0 +1,1 @@
+{"id":"fea442d9-dda7-412e-b0e7-ebdcb949d93c","messageType":"IncidentAssignmentEvent","invokingService":"IncidentProcessService","timestamp":1579363201291,"body":{"incidentId":"f68eda5d-2fcb-4c86-99d8-70769b539a40","assignment":true}}

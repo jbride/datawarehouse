@@ -1,0 +1,1 @@
+{"id":"f62a5453-198c-48e3-9e15-b074b32685f3","messageType":"UpdateResponderCommand","invokingService":"IncidentProcessService","timestamp":1579049626593,"header":{"incidentId":"bf56f577-c281-4e09-a708-3f7cfcabf1fc"},"body":{"responder":{"id":"1","name":null,"phoneNumber":null,"latitude":null,"longitude":null,"boatCapacity":null,"medicalKit":null,"available":false}}}
