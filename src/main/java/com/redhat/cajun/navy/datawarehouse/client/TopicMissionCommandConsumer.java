@@ -70,7 +70,7 @@ public class TopicMissionCommandConsumer {
                         .getLocalMap(Constants.INCIDENT_PROCESS_INSTANCE_MAP);
                 ipMap.put(iObj.getIncidentId(), pInstanceId);
             } else {
-                throw new RuntimeException(Constants.NO_PROCESS_INSTANCE_ID_EXCEPTION
+                logger.error(Constants.NO_PROCESS_INSTANCE_ID_EXCEPTION
                         + "  :  No pInstanceId found for CreateMissionCommand with incidentId = "
                         + iObj.getIncidentId());
             }

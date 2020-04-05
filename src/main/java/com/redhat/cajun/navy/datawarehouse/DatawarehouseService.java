@@ -13,6 +13,8 @@ import java.util.concurrent.CompletionStage;
 import javax.enterprise.context.ApplicationScoped;
 import javax.enterprise.event.Observes;
 import javax.inject.Inject;
+
+import org.apache.commons.lang3.StringUtils;
 import org.eclipse.microprofile.rest.client.inject.RestClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -100,44 +102,51 @@ public class DatawarehouseService {
         // Check if local cache contains corresponding MissionReport
         if (mReport == null) {
             logger.error(Constants.NO_REPORT_FOUND_EXCEPTION + " : " + latestReport.getId()
-                    + " : No report found in local cache.  Will instead use mission report latest completed event.  Expect missing fields in report");
-            mReport = latestReport;
+                    + " : No report found in local cache.  Will not persist because there would be fields missing in the report");
         } else {
+            if(StringUtils.isEmpty(mReport.getProcessInstanceId())) {
+                logger.error(Constants.NO_PROCESS_INSTANCE_ID_EXCEPTION
+                        + "  :  Will not persist. No pInstanceId found for CreateMissionCommand with incidentId = "
+                        + latestReport.getId());
+            }else {
 
-            /*
-             * Original MissionReport from MissionStartedEvent has empty
-             * ResponderLocationHistory. Add ResponderLocationHistory from this
-             * MissionCompletedEvent to original MissionReport.
-             */
-            mReport.setResponderLocationHistory(latestReport.getResponderLocationHistory());
+                /*
+                 * Original MissionReport from MissionStartedEvent has empty
+                 * ResponderLocationHistory. Add ResponderLocationHistory from this
+                 * MissionCompletedEvent to original MissionReport.
+                 */
+                mReport.setResponderLocationHistory(latestReport.getResponderLocationHistory());
+    
+                /*
+                 * Based on ResponderLocationHistory, calculate distance travelled and
+                 * durations.
+                 */
+                mReport.calculateDistancesAndTimes();
+    
+                /*
+                 * Change status of original report
+                 */
+                mReport.setStatus(latestReport.getStatus());
+    
+                /*
+                 * Persist original MissionReport (updated with latest data and calculations) to
+                 * the MissionReport datawarehouse.
+                 */
+                CompletionStage<Integer> cStage = reportingDAO.persistMissionReport(mReport);
+                cStage.whenCompleteAsync((numPersisted, exception) -> {
+                    if (exception == null) {
+                        logger.info("processMissionCompletion() persistence result = " + numPersisted);
+                    } else {
+                        exception.printStackTrace();
+                    }
+                });
+            }
 
-            /*
-             * Based on ResponderLocationHistory, calculate distance travelled and
-             * durations.
-             */
-            mReport.calculateDistancesAndTimes();
-
-            /*
-             * Change status of original report
-             */
-            mReport.setStatus(latestReport.getStatus());
+    
+            // Delete temp report from MissionReportMap
+            mMap.remove(mReport.getId());
         }
 
-        /*
-         * Persist original MissionReport (updated with latest data and calculations) to
-         * the MissionReport datawarehouse.
-         */
-        CompletionStage<Integer> cStage = reportingDAO.persistMissionReport(mReport);
-        cStage.whenCompleteAsync((numPersisted, exception) -> {
-            if (exception == null) {
-                logger.info("processMissionCompletion() persistence result = " + numPersisted);
-            } else {
-                exception.printStackTrace();
-            }
-        });
-
-        // Delete temp report from MissionReportMap
-        mMap.remove(mReport.getId());
     }
 
     private void populateMissionReportWithResponderInfo(MissionReport mReport) {

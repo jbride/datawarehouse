@@ -2,54 +2,13 @@
 
 :numbered:
 
-== Status
+== Overview
+Purpose of this component of the ER-Demo is populate a relational PostgreSQL database (with a de-normalized schema) that serves as a datawarehouse.
+This datawarehouse is then exposed via a GrafanaDashboards.
 
-=== Completed
+This component listens on various AMQ Streams topics to consume its messages and persist to the de-normalized database.
+This component is written using Quarkus.
 
-. Kafka consumers in this _datawarehouse_ project collect and parse various incident, mission, and responder related messages.
-. Data from those messages is persisted into a PostgreSQL based de-normalized datawarehouse
-. ER-Demo _process-service_ is modified to send _processInstanceId_ in the  _CreateMissionCommand_ message.
-. Several rudimentary reports have been created in the _Page Designer (aka: Dashbuilder)_ component of Business Central v7.6.
-.. *Site Commander KPIs*
-... Target Daily Rescued _meter_
-... Total Rescued _metric_
-... Total Responders _metric_
-
-.. *Responder KPIs*
-... Top Responders _bar_
-... Fastest Pickup Speeds _bar_
-... Slowest Pickup Speeds _bar_
-... Fastest Drop Off Speeds _bar_
-... Slowest Drop Off Speeds _bar_
-
-=== To-Do
-
-. _Slowest Incidents_ bar report
-.. displays top 10 slowest end-to-end incidents
-.. click one of the incidents in bar report to drill-down into the _process log_ for the corresponding process instance:
-+
-image::images/process_log.png[]
-
-. Dashboard look-n-feel (William)
-+
-https://reporting.opentlc.com/dashbuilder/index.jsp
-
-. Dashboards not automatically refreshing (William)
-. Automated import / export of dashboards (William)
-. Automate import / export of drivers & datasources (William)
-+
-Instead of utilzing BC Admin functionality, should these just be loaded as JBoss EAP modules ?
-
-. Enabling Process & Task Reports when KIE-Server does not exist (William)
-. Creation of new "Page" in RHPAM-Monitoring (William)
-.. Activity not found
-+
-The location you try to open is inaccessible. Please double check it is an existing location and you have permissions to see it: Settings -> Roles -> Permissions.
-. Handle Mission Failures
-. Persist MissionCompleted events in batch
-. Occasional exception when retrieving responder data from _datawarehouse service_:
-+
-https://gist.github.com/jbride/836f04593d0ac26630e8fd52c1f11c55
 
 == Development
 
@@ -90,9 +49,9 @@ ansible-playbook -i inventories/inventory playbooks/datawarehouse.yml \
 -----
 cd $ER_DEMO_HOME/datawarehouse
 
-podman build -f src/main/docker/Dockerfile.jvm -t quay.io/jbride/datawarehouse:0.0.1 .
+podman build -f src/main/docker/Dockerfile.jvm -t quay.io/emergencyresponsedemo/datawarehouse:2.1 .
 
-podman push quay.io/jbride/datawarehouse:0.0.1
+podman push quay.io/emergencyresponsedemo/datawarehouse:2.1
 -----
 
 . Refresh IS
