@@ -22,12 +22,12 @@ public class MissionReportDAOTests {
     private static String topicResponderLocationUpdatePickupFilePath = "src/test/resources/topicResponderLocationUpdate_PICKEDUP2.json";
     private static final Logger logger = LoggerFactory.getLogger(MissionReportDAOTests.class);
 
-    @Inject
+    //@Inject
     IReportingDAO reportingDAO;
 
     /*  Currently assumes existing of a postgresql rdbms at: 127.0.0.1:5432/datawarehouse
      */
-    @Test
+    //@Test
     public void persistMissionReportTest() throws Exception {
 
         Assertions.assertNotNull(reportingDAO);
