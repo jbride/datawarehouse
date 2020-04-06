@@ -20,7 +20,7 @@ public class MissionReportTests {
     private static String missionCompletedEventFilePath = "src/test/resources/MissionCompletedEvent2.json";
     private static String topicResponderLocationUpdatePickupFilePath = "src/test/resources/topicResponderLocationUpdate_PICKEDUP2.json";
 
-    @Test
+    //@Test
     public void decodeMissionCommandTest() throws IOException {
         int expectedNumSteps = 31;
         File testFile = new File(missionStartedEventFilePath);
@@ -29,7 +29,7 @@ public class MissionReportTests {
         Assertions.assertEquals(expectedNumSteps, mcObj.getMissionReport().getSteps().size());
     }
 
-    @Test
+    //@Test
     public void pickUpandDropOffDistancesTest() throws IOException {
         double expectedPickupDistance = 11925.486164264421;
         double expectedDropoffDistance = 14117.114430289823;
