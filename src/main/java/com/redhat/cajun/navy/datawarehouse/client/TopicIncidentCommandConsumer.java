@@ -6,6 +6,8 @@ import javax.inject.Inject;
 
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.eclipse.microprofile.reactive.messaging.Incoming;
+import org.eclipse.microprofile.reactive.messaging.Acknowledgment;
+import io.smallrye.reactive.messaging.annotations.Blocking;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -27,6 +29,8 @@ public class TopicIncidentCommandConsumer {
     }
 
     @Incoming("topic-incident-command")
+    @Blocking // Ensure execution occurs on a worker thread rather than on the event loop thread (which whould never be blocked)
+    @Acknowledgment(Acknowledgment.Strategy.PRE_PROCESSING)  // Ack message prior to message processing
     public void process(String topicIncidentCommand) {
         if (this.log) {
             logger.info("process() topicIncidentCommand = " + topicIncidentCommand);

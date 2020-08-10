@@ -13,6 +13,7 @@ import java.util.Set;
 import javax.enterprise.context.ApplicationScoped;
 import javax.enterprise.event.Observes;
 import javax.inject.Inject;
+import javax.annotation.Priority;
 
 import org.apache.commons.lang3.StringUtils;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
@@ -40,7 +41,7 @@ public class DatawarehouseService {
     @ConfigProperty(name = BUBBLE_UP_EXCEPTIONS, defaultValue = "True")
     String bubbleUpExceptions;
 
-    void onStart(@Observes StartupEvent ev) {
+    void onStart(@Observes @Priority(value = 1) StartupEvent ev) {
 
         System.out.println("              _   _            _____    _____           ");
         System.out.println("             | \\ | |    /\\    |  __ \\  / ____|          ");

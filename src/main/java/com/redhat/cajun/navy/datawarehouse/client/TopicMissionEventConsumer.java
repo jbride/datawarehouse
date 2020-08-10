@@ -11,6 +11,8 @@ import org.apache.commons.lang3.StringUtils;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.eclipse.microprofile.reactive.messaging.Incoming;
 import org.eclipse.microprofile.rest.client.inject.RestClient;
+import io.smallrye.reactive.messaging.annotations.Blocking;
+import org.eclipse.microprofile.reactive.messaging.Acknowledgment;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -45,6 +47,8 @@ public class TopicMissionEventConsumer {
     }
 
     @Incoming("topic-mission-event")
+    @Blocking // Ensure execution occurs on a worker thread rather than on the event loop thread (which whould never be blocked)
+    @Acknowledgment(Acknowledgment.Strategy.PRE_PROCESSING)  // Ack message prior to message processing
     public void process(String missionEventCommand) {
         if (StringUtils.isEmpty(missionEventCommand)) {
             logger.warn("process() empty message body");
