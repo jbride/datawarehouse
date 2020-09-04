@@ -5,6 +5,7 @@ import javax.annotation.PostConstruct;
 import javax.enterprise.context.ApplicationScoped;
 import javax.inject.Inject;
 
+import com.redhat.cajun.navy.datawarehouse.DatawarehouseService;
 import com.redhat.cajun.navy.datawarehouse.model.MissionReport;
 import com.redhat.cajun.navy.datawarehouse.model.ResponderLocationUpdate;
 
@@ -12,17 +13,20 @@ import org.apache.commons.lang3.StringUtils;
 import org.eclipse.microprofile.reactive.messaging.Acknowledgment;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.eclipse.microprofile.reactive.messaging.Incoming;
+import org.infinispan.client.hotrod.MetadataValue;
+import org.infinispan.client.hotrod.exceptions.HotRodClientException;
+
 import io.smallrye.reactive.messaging.annotations.Blocking;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import io.vertx.core.shareddata.LocalMap;
 import io.vertx.core.json.Json;
 
 /*
- *   Consumes the following message type on the topic-responder-location-update kafka topic:
+ *   Purpose:
+ *     Consumes a location-update message (with status of PICKEDUP) from topic-responder-location-update kafka topic :
  * 
- *    {"responderId":"8","missionId":"c6dfad30-8481-4500-803a-f4728cbfa70c","incidentId":"d01ab222-1561-427c-a185-72698b83f5a0","status":"MOVING","lat":34.1853,"lon":-77.8609,"human":false,"continue":true}
+ *    Sample message as follows: 
+ *        {"responderId":"8","missionId":"c6dfad30-8481-4500-803a-f4728cbfa70c","incidentId":"d01ab222-1561-427c-a185-72698b83f5a0","status":"PICKEDUP","lat":34.1853,"lon":-77.8609,"human":false,"continue":true}
  */
 @ApplicationScoped
 public class TopicResponderLocationUpdateConsumer {
@@ -32,7 +36,7 @@ public class TopicResponderLocationUpdateConsumer {
     private boolean log = true;
 
     @Inject
-    io.vertx.mutiny.core.Vertx vertx;
+    DatawarehouseService dService;
 
     @Inject
     @ConfigProperty(name = LOG_RESPONDER_LOCATION_UPDATE_COMSUMER, defaultValue = "False")
@@ -57,19 +61,40 @@ public class TopicResponderLocationUpdateConsumer {
         }
         ResponderLocationUpdate rlObj = Json.decodeValue(topicCommand, ResponderLocationUpdate.class);
         if (rlObj.getStatus().equals(ResponderLocationUpdate.Statuses.PICKEDUP.name())) {
+            String incidentId = rlObj.getIncidentId();
 
             // Set pickup point in Mission Report.
             // The equivalent MissionCompletedEvent.steps (retrieved from MapBox) may not
             // correspond to actual steps in responderLocationHistory
-            LocalMap<String, MissionReport> mMap = vertx.getDelegate().sharedData().getLocalMap(Constants.MISSION_MAP);
-            MissionReport mReport = mMap.get(rlObj.getMissionId());
-            if(mReport != null) {
-                mReport.setPickupLat(rlObj.getLat());
-                mReport.setPickupLong(rlObj.getLon());
-            }else {
-                logger.error(Constants.NO_REPORT_FOUND_EXCEPTION+" : No MissionReport found in cache for reportId = "+rlObj.getMissionId());
+            try {
+                updateCache(rlObj.getIncidentId(), rlObj);
+            } catch(HotRodClientException x) {
+                logger.error(rlObj.getIncidentId()+" : "+Constants.HOTROD_CLIENT_EXCEPTION+ " : processing ResponderLocationUpdateEvent() .... will try again");
+                try {
+                    Thread.sleep(250);
+                    updateCache(rlObj.getIncidentId(), rlObj);
+                }catch(Exception y){
+                    logger.error(rlObj.getIncidentId()+" Error processing ResponderLocationUpdateEvent() after second attempt !!!");
+                    y.printStackTrace();
+                }
+            }catch(Throwable x) {
+                logger.error(incidentId+" Error processing location-update");
+                x.printStackTrace();
             }
-
+        }
+    }
+    
+    private void updateCache(String id, ResponderLocationUpdate rlObj) throws Exception {
+       
+        MetadataValue<MissionReport> mValue = dService.getMissionReportCache().getWithMetadata(id);
+        if(mValue != null) {
+            MissionReport mReport = mValue.getValue();
+            mReport.setPickupLat(rlObj.getLat());
+            mReport.setPickupLong(rlObj.getLon());
+            dService.getMissionReportCache().replaceWithVersion(rlObj.getIncidentId(), mReport, mValue.getVersion());
+            logger.info(mReport.getIncidentId()+" : Just updated with pickupLat = "+rlObj.getLat());
+        }else {
+            logger.error(id+" "+Constants.NO_REPORT_FOUND_EXCEPTION);
         }
     }
 
