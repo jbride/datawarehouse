@@ -4,6 +4,7 @@ import javax.annotation.PostConstruct;
 import javax.enterprise.context.ApplicationScoped;
 import javax.inject.Inject;
 
+import com.redhat.cajun.navy.datawarehouse.DatawarehouseService;
 import com.redhat.cajun.navy.datawarehouse.model.Incident;
 import com.redhat.cajun.navy.datawarehouse.model.MissionReport;
 import com.redhat.cajun.navy.datawarehouse.model.cmd.incident.IncidentCommand;
@@ -12,18 +13,18 @@ import com.redhat.cajun.navy.datawarehouse.util.Constants;
 import org.apache.commons.lang3.StringUtils;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.eclipse.microprofile.reactive.messaging.Incoming;
+import org.infinispan.client.hotrod.MetadataValue;
+import org.infinispan.client.hotrod.exceptions.HotRodClientException;
 import org.eclipse.microprofile.reactive.messaging.Acknowledgment;
 import io.smallrye.reactive.messaging.annotations.Blocking;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import io.vertx.core.shareddata.LocalMap;
 import io.vertx.core.json.Json;
 
-/*
- Consumes the following events "topic-incident-event" Kafka topic:
-   1) IncidentReportedEvent
-   2) IncidentUpdatedEvent
+/*  Purpose:
+ *    Consume the IncidentUpdatedEvent (produced by incident-service) with a status of PICKEDUP from topic-incident-event Kafka topic
+ *    This message contains the actual number of people that were picked up
 */
 @ApplicationScoped
 public class TopicIncidentEventConsumer {
@@ -33,7 +34,7 @@ public class TopicIncidentEventConsumer {
     private boolean log = true;
 
     @Inject
-    io.vertx.mutiny.core.Vertx vertx;
+    DatawarehouseService dService;
 
     @Inject
     @ConfigProperty(name = LOG_INCIDENT_EVENT_CONSUMER, defaultValue = "False")
@@ -46,7 +47,7 @@ public class TopicIncidentEventConsumer {
     }
 
     @Incoming("topic-incident-event")
-    @Blocking // Ensure execution occurs on a worker thread rather than on the event loop thread (which whould never be blocked)
+    @Blocking // Ensure execution occurs on a worker thread rather than on the event loop thread (which would never be blocked)
     @Acknowledgment(Acknowledgment.Strategy.PRE_PROCESSING)  // Ack message prior to message processing
     public void process(String topicIncidentEvent) {
         if (StringUtils.isEmpty(topicIncidentEvent)) {
@@ -62,34 +63,40 @@ public class TopicIncidentEventConsumer {
             Incident iObj = icObj.getBody();
             if (Incident.Statuses.PICKEDUP.name().equals(iObj.getStatus())) {
 
-                // If event = PICKEDUP, then update MissionReport with numberRescued
-
-                // Retrieve local cache of incidentId -> missionId mapper
-                LocalMap<String, String> imMap = vertx.getDelegate().sharedData().getLocalMap(Constants.INCIDENT_MISSION_MAP);
-                String missionId = imMap.get(iObj.getId());
-                if(StringUtils.isEmpty(missionId))
-                    throw new RuntimeException(Constants.NO_REPORT_FOUND_EXCEPTION+" : No MissionReport found for reportId = "+missionId);
-
-                // Retrive local cache of MissionReports
-                LocalMap<String, MissionReport> mMap = vertx.getDelegate().sharedData().getLocalMap(Constants.MISSION_MAP);
-                MissionReport mReport = mMap.get(missionId);
-
-                mReport.setNumberRescued(iObj.getNumberOfPeople());
-
-                // In addition, set MissionReport with previously determined processInstanceId
-                LocalMap<String, String> ipMap = vertx.getDelegate().sharedData()
-                        .getLocalMap(Constants.INCIDENT_PROCESS_INSTANCE_MAP);
-                String pInstanceId = ipMap.get(iObj.getId());
-                if (StringUtils.isNotEmpty(pInstanceId)) {
-                    mReport.setProcessInstanceId(pInstanceId);
-                } else {
-                    throw new RuntimeException(Constants.NO_PROCESS_INSTANCE_ID_EXCEPTION
-                            + "  :  No pInstanceId found for incidentId = " + iObj.getId());
+                try {
+                    // If event = PICKEDUP, then update MissionReport with numberRescued
+                    updateCache(icObj.getId(), iObj);
+                } catch(HotRodClientException x) {
+                        logger.error(icObj.getId()+" : "+Constants.HOTROD_CLIENT_EXCEPTION+ " : processing IncidentUpdatedEvent() .... will try again");
+                        try {
+                            Thread.sleep(250);
+                            updateCache(icObj.getId(), iObj);
+                        }catch(Exception y){
+                            logger.error(icObj.getId()+" Error processing IncidentUpdatedEvent() after second attempt !!!");
+                            y.printStackTrace();
+                        }
+                } catch(Exception x) {
+                    logger.error(icObj.getId()+" Error processing IncidentUpdatedEvent()");
+                    x.printStackTrace();
                 }
             }
-
+            
         }
+        
+    }
+    
+    private void updateCache(String id, Incident iObj) throws Exception {
 
+        MetadataValue<MissionReport> mValue = dService.getMissionReportCache().getWithMetadata(iObj.getId());
+        if(mValue != null) {
+            MissionReport mReport = mValue.getValue();
+            mReport.setNumberRescued(iObj.getNumberOfPeople());
+            dService.getMissionReportCache().replaceWithVersion(iObj.getId(), mReport, mValue.getVersion());
+            logger.info(mReport.getIncidentId()+" : updated with following # of rescued people: "+iObj.getNumberOfPeople());
+        }else {
+            logger.error(id+" "+Constants.NO_REPORT_FOUND_EXCEPTION);
+        }
+        
     }
 
 }
